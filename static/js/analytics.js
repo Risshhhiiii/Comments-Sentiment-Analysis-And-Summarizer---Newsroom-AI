@@ -234,46 +234,69 @@ function attachExportListeners() {
     }
   });
 
-  document.getElementById('export-excel').addEventListener('click', () => {
-    if (!analytics || !analytics.kpis) return;
+  document.getElementById('export-excel').addEventListener('click', async () => {
+    if (!currentArticleId) return;
 
-    const wb = XLSX.utils.book_new();
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/articles/${currentArticleId}/comments`);
+      if (!res.ok) throw new Error("Could not fetch comments");
+      const comments = await res.json();
 
-    // KPI Data Sheet
-    const kpiData = [["Metric", "Value", "Subtitle"]];
-    analytics.kpis.forEach(k => {
-      kpiData.push([k.title, String(k.value), k.subtitle || '']);
-    });
-    const kpiSheet = XLSX.utils.aoa_to_sheet(kpiData);
-    XLSX.utils.book_append_sheet(wb, kpiSheet, "KPIs");
+      const wb = XLSX.utils.book_new();
 
-    // Sentiment Data Sheet
-    const sentData = [["Emotion", "Percentage (%)"]];
-    for (const [emotion, pct] of Object.entries(analytics.sentimentDist)) {
-      sentData.push([emotion, String(pct)]);
+      const exportData = [
+        ["Total Comments", comments.length],
+        [],
+        ["Article ID", "Comment", "Emotion Label", "Emotion Score"]
+      ];
+
+      comments.forEach(c => {
+        exportData.push([
+          c.article_id || currentArticleId,
+          String(c.text || ''),
+          c.emotion_label || 'N/A',
+          c.emotion_score !== undefined ? String(c.emotion_score) : 'N/A'
+        ]);
+      });
+
+      const sheet = XLSX.utils.aoa_to_sheet(exportData);
+      XLSX.utils.book_append_sheet(wb, sheet, "Comments Data");
+
+      const title = analytics && analytics.article ? analytics.article.title : "Article";
+      XLSX.writeFile(wb, `${title}_Comments_Data.xlsx`);
+    } catch (e) {
+      console.error("Excel Export failed:", e);
+      alert("Failed to export Excel.");
     }
-    const sentSheet = XLSX.utils.aoa_to_sheet(sentData);
-    XLSX.utils.book_append_sheet(wb, sentSheet, "Sentiment");
-
-    XLSX.writeFile(wb, `${analytics.article.title}_Analytics.xlsx`);
   });
 
-  document.getElementById('export-csv').addEventListener('click', () => {
-    if (!analytics || !analytics.kpis) return;
+  document.getElementById('export-csv').addEventListener('click', async () => {
+    if (!currentArticleId) return;
 
-    // Generate basic KPI CSV
-    let csvContent = "Metric,Value,Subtitle\n";
-    analytics.kpis.forEach(k => {
-      csvContent += `"${k.title}","${k.value}","${k.subtitle || ''}"\n`;
-    });
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/articles/${currentArticleId}/comments`);
+      if (!res.ok) throw new Error("Could not fetch comments");
+      const comments = await res.json();
 
-    csvContent += "\nEmotion,Percentage\n";
-    for (const [emotion, pct] of Object.entries(analytics.sentimentDist)) {
-      csvContent += `"${emotion}","${pct}%"\n`;
+      let csvContent = `"Total Comments","${comments.length}"\n\n`;
+      csvContent += `"Article ID","Comment","Emotion Label","Emotion Score"\n`;
+
+      comments.forEach(c => {
+        const articleId = String(c.article_id || currentArticleId).replace(/"/g, '""');
+        const text = String(c.text || '').replace(/"/g, '""');
+        const label = String(c.emotion_label || 'N/A').replace(/"/g, '""');
+        const score = c.emotion_score !== undefined ? String(c.emotion_score).replace(/"/g, '""') : 'N/A';
+
+        csvContent += `"${articleId}","${text}","${label}","${score}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const title = analytics && analytics.article ? analytics.article.title : "Article";
+      saveAs(blob, `${title}_Comments_Data.csv`);
+    } catch (e) {
+      console.error("CSV Export failed:", e);
+      alert("Failed to export CSV.");
     }
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    saveAs(blob, `${analytics.article.title}_Analytics.csv`);
   });
 }
 

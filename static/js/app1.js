@@ -9,7 +9,11 @@ function goAnalytics() {
 
 // ---------- NEW: Backend Article Loading ----------
 document.addEventListener("DOMContentLoaded", () => {
-  fetch("http://127.0.0.1:8000/articles")
+  fetch("http://127.0.0.1:8000/articles", {
+    headers: {
+      "Accept": "application/json"
+    }
+  })
     .then(response => response.json())
     .then(articles => {
       const container = document.getElementById("articles-container");

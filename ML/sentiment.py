@@ -36,12 +36,17 @@ def connect_db():
     """
     global client, db, collection
     try:
-        client = MongoClient(config.MONGO_URI)
+        client = MongoClient(config.MONGO_URI, serverSelectionTimeoutMS=5000)
+        # Explicit test to ensure the database can be reached
+        client.admin.command('ping')
         db = client[config.DB_NAME]
         collection = db["comments"]
         print(f"Connected to MongoDB at {config.MONGO_URI}")
     except Exception as e:
         print(f"Error connecting to MongoDB: {e}")
+        client = None
+        db = None
+        collection = None
 
 def analyze_emotion(text: str) -> dict:
     """
@@ -75,15 +80,19 @@ def process_new_comments():
     """
     Fetches comments without emotion_label and updates them.
     """
+    global collection
     if collection is None:
-        return
+        connect_db()
+        if collection is None:
+            return
 
     try:
         # Find comments where 'emotion_label' does not exist
-        cursor = collection.find({"emotion_label": {"$exists": False}})
+        # Fetching into a list with a limit prevents cursor timeouts during slow ML inference
+        docs = list(collection.find({"emotion_label": {"$exists": False}}).limit(100))
         
         count = 0
-        for doc in cursor:
+        for doc in docs:
             text = doc.get("text", "")
             result = analyze_emotion(text)
             
@@ -103,6 +112,8 @@ def process_new_comments():
             
     except Exception as e:
         print(f"Error in processing loop: {e}")
+        # Reset collection so the next loop iteration attempts to reconnect
+        collection = None
 
 def start_watcher():
     """

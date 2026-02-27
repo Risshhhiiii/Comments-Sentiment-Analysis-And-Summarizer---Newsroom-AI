@@ -31,6 +31,7 @@ app.add_middleware(
 
 # ---------------- STARTUP PIPELINE ----------------
 import threading
+from ML.sentiment import load_model as load_emotion_model, start_watcher as start_emotion_watcher
 
 @app.on_event("startup")
 def startup_event():
@@ -40,8 +41,13 @@ def startup_event():
         fetch_and_store_articles()
         print("✅ Startup pipeline complete")
 
+    def bg_sentiment_watcher():
+        load_emotion_model()
+        start_emotion_watcher()
+
     threading.Thread(target=bg_fetch, daemon=True).start()
-    print("✅ Server started. Background fetching initiated.")
+    threading.Thread(target=bg_sentiment_watcher, daemon=True).start()
+    print("✅ Server started. Background fetching and sentiment watcher initiated.")
 
 
 # ---------------- PAGE ROUTES ----------------

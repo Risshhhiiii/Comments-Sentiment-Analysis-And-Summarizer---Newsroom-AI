@@ -50,7 +50,7 @@ def fetch_and_store_articles():
 
     params = {
         "language": "en",
-        "pageSize": 2,  # fetch extra to allow filtering
+        "pageSize": 10,  # fetch extra to allow filtering
         "sources": "bbc-news,cnn,reuters",
         "apiKey": NEWS_API_KEY
     }

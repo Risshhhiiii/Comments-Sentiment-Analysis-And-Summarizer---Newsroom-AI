@@ -54,7 +54,7 @@ def fetch_comments(video_id):
         request = youtube.commentThreads().list(
             part="snippet",
             videoId=video_id,
-            maxResults=15,  # keep quota safe
+            maxResults=25,  # keep quota safe
             textFormat="plainText"
         )
 
